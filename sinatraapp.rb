@@ -7,14 +7,14 @@ require 'sinatra'
 
 
 
-disable = '#6666CC'
+disable = '#FF0000'
 
 
 before do
     content_type 'application/json'
 end
 get '/check/:id' do |id|
-  msv = id.strip
+	msv = id.strip
 	client = Savon.client("http://10.1.0.237:8082/Services.asmx?wsdl")
 	response = client.request(:tinh_trang_sinh_vien) do
 		soap.body = {:masinhvien => msv}
@@ -39,6 +39,8 @@ prev = {}
 status = {}
 diem = {}
 replace = {}
+courses2 = {}
+mas = 1
 
 
 	msv = id.strip
@@ -99,15 +101,56 @@ replace = {}
 	ls_courses.each do |item|
 		temp = item[:ma_mon_hoc].strip
 		sbjs[temp] = 0		
-		groups[temp] = 1
-		names[temp] = item[:ten_mon_hoc].strip
-		colors[temp] = disable
-		status[temp] = 0
-	end
+		
+		status[temp] = {}
+		status[temp]['makhoi'] = item[:ma_khoi_kien_thuc].strip
+		status[temp]['khoikienthuc'] = item[:ten_khoi_kien_thuc].strip
+		status[temp]['tinhtrang'] = disable
+		status[temp]['ten'] = item[:ten_mon_hoc].strip
+		status[temp]['khoiluong'] = item[:tong_so].strip	
+		status[temp]['nhom'] = 1
+		if (item[:tu_chon]) then 
+			if (item[:so_mon_phai_chon]) then 
+				status[temp]['somontuchon'] = item[:so_mon_phai_chon].strip + '/' + item[:tong_so_mon_tu_chon].strip
+				if (item[:ten_nhom] ) then 
+					status[temp]['tennhom'] = item[:ten_nhom].strip
+				else
+					status[temp]['tennhom'] = ''
+				end
+			else
+				status[temp]['somontuchon'] = ''
+				status[temp]['tennhom'] = ''
+			end
 
+			status[temp]['tuchon'] = 1 
+		else status[temp]['tuchon'] = 0 
+		end
+	end
+	outside = '#FF9900'
+	outside_fail = '#FF99FF'
+	if (ls_replace) then 				
+		ls_replace.each do |item|	
+			
+				
+			mon1 = item[:ma_mon_hoc1].strip
+			puts 'mon1: ' + mon1 
+
+			mon2 = item[:ma_mon_hoc2].strip
+			
+			if (status[mon1]) then 
+				status[mon1]['thaythe'] = mon2			
+				replace[mon2] = mon1
+			end
+		end
+	end
 	ls_dk.each do |item| 		
 		mon1 = item[:ma_mon_hoc1].strip
 		mon2 = item[:ma_mon_hoc2].strip
+
+		if (replace[mon1]) then mon1 = replace[mon1] end
+		if (replace[mon2]) then mon2 = replace[mon2] end
+
+
 		if (!deps[mon1]) then deps[mon1] = Array.new end
 
 		deps[mon1].push(mon2)
@@ -131,66 +174,134 @@ replace = {}
 	ls_dk.each do |item| 
 		mon1 = item[:ma_mon_hoc1].strip
 		mon2 = item[:ma_mon_hoc2].strip		
-		ro(groups, deps, mon1)
-		
+		mas = [ro(status, deps, mon1, 1),mas].max		
 	end
 
-	pass = '#009966'	
-	fail = '#0066CC'
+
+
+	pass = '#006666'	
+	fail = '#CCCC00'
 	if (ls ) then
 		ls.each do |item|
-			colors[item[:ma_mon_hoc].strip] = pass
-			status[item[:ma_mon_hoc].strip] = 1
+			temp = item[:ma_mon_hoc].strip
+			if (status[temp] ) then 
+				status[temp]['tinhtrang'] = pass			
+			else 
+				puts 'No pass: ' + temp
+			end
 		end
 	end
 	if (ls2) then 
 		ls2.each do |item|
-			colors[item[:ma_mon_hoc].strip] = fail
-			status[item[:ma_mon_hoc].strip] = 2
+			temp = item[:ma_mon_hoc].strip
+			if (status[temp]) then 
+				status[temp]['tinhtrang'] = fail			
+			else 
+				puts 'No fail: ' + temp
+			end	
 		end
 	end
 	i = 0
+	j = 0
 	sbjs.each do |k,v|
 		if (v > 0) then 		
 			courses[k] = i
 			i = i + 1		
+		else
+			courses2[k] = j
+			j = j + 1
 		end
 	end
+
+	courses2_json = []
+	courses2.each do |k,v|
+		courses2_json.push({"name" => status[k]['ten']})
+	end
 	
+	courses.each do |k,v|		
+			if (status[k]['makhoi']=='4') then 
+				status[k]['nhom'] = mas + 1
+				ro(status, deps, k, mas + 1)				
+			end 			
+	end
+
 	ls_dk.each do |item| 
 		links.push({"source" => courses[item[:ma_mon_hoc1].strip],
 					"target" => courses[item[:ma_mon_hoc2].strip]})		
+
 	end
 
-	enable = '#CC33FF'
-	colors.each do |k,v|
-		if (v == pass or v == fail) and (deps[k]) and (colors[deps[k]] == disable) then
-			colors[deps[k]] = enable
+	enable = '#9900FF'
+
+	courses.each do |k, v|
+		temp = deps[k]
+		if (temp) then 
+				status[k]['leaf'] = 0		
+		else
+			status[k]['leaf'] = 1
+		end
+		if (status[k]['nhom'] == 1 and status[k]['tinhtrang'] == disable) then 
+			status[k]['tinhtrang'] = enable
+		end
+		if (status[k]['tinhtrang'] == pass or status[k]['tinhtrang'] == fail) then 			
+			if (temp) then 						
+				temp.each do |item|
+					if (status[item]['tinhtrang'] == disable) then status[item]['tinhtrang'] = enable end
+				end
+			end
 		end
 	end
 
 	sbjs.each do |k,v|
 		if (v > 0) then 			
-			nodes.push({"name" => names[k], 
-					"group" => groups[k], 
-					"color" => colors[k],
-					"status" => status[k]})
+			nodes.push({"name" => status[k]['ten'], 
+					"group" => status[k]['nhom'], 
+					"color" => status[k]['tinhtrang'],
+					"mamon" => k,
+					"tuchon" => status[k]['tuchon'],
+					"tennhom" => status[k]['tennhom'],
+					"somontuchon" => status[k]['somontuchon'],
+					"khoikienthuc" => status[k]['khoikienthuc'],
+					"leaf" => status[k]['leaf'],
+					"dvht" => status[k]['khoiluong'],
+					"thaythe" => (status[k]['thaythe']) ?   status[k]['thaythe'] : '' })
 		end
 	end
 
 	tags["nodes"] = nodes
 	tags["links"] = links
-		
-	
-	tags.to_json
+	tags["other"] = courses2_json
+
+	return tags.to_json
 end
-def ro(groups, deps, item)
-	if (!deps[item]) then return end	
-	deps[item].each do |it|
-		groups[it] = [groups[it],groups[item] + 1].max
-		ro(groups, deps, it)
+
+def ro(status, deps, item, mas)
+	if (!deps[item]) then
+		return status[item]['nhom']
+	  end		 	
+		deps[item].each do |it|
+			status[it]['nhom'] = [status[it]['nhom'],status[item]['nhom'] + 1].max				
+			tmp = ro(status, deps, it, status[it]['nhom'])		
+			mas = [tmp, mas].max
+		end	
+	return mas	
+end
+
+def ri(status, deps, item)	
+	if (!deps[item]) then return 
+	else
+		temp = status[item]['tinhtrang'].strip
+		if (temp == pass or temp == fail) then 
+			deps[item].each do |it|
+				if (status[it]['tinhtrang'].strip == disable) then
+					status[it]['tinhtrang'].strip = enable		
+					puts it 											
+				else 
+					ri(status, deps, it)
+				end
+			end
+		end
 	end
-	
 end
 
  
