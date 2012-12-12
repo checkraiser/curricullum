@@ -1,0 +1,125 @@
+<!DOCTYPE html>   
+<html lang="en">   
+<head>   
+<meta charset="utf-8">   
+<title>Hệ thống hỗ trợ đăng kí môn học</title>   
+<meta name="description" content="Creating Modal Window with Twitter Bootstrap">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+<link href="css/bootstrap.min.css" rel="stylesheet">   
+  <script type="text/javascript" src="js/d3.v2.min.js"></script>
+  <style type="text/css">
+      circle.node {
+        stroke: #fff;
+        font-size: 24px;
+        stroke-width: 1px;
+      }
+      line.link {
+        stroke: #123;
+        stroke-width: 1px;
+        stroke-opacity: .6;
+      }
+    #mainbody {
+	  	height:500px;	
+	  		
+	  	overflow:scroll;
+	  }
+
+	  #tags {
+	  	height:4000px;
+  		width:4000px;
+	  	
+	  }
+	 #othercourses {
+	 	font-weight: bold;
+	 	font-size: 30px;	 		 	
+	 }
+
+}
+	  #mynavbar {
+	  	background-color: #3B5998;
+	  }
+	  .modal-body {
+    max-height: 800px;
+     max-width: 80%;
+}
+	</style>
+</head>  
+<body>  
+ 
+  <div class="modal hide fade" id="myModal">
+  <div class="modal-header">
+    <a class="close" data-dismiss="modal">×</a>
+    <h3>Hướng dẫn đăng kí môn học</h3>
+  </div>
+  <div class="modal-body">
+    <img src="img/huongdan.jpg" />
+    
+  </div>
+ 
+</div>
+ 
+<div class="modal hide fade" id="myModal2">
+  <div class="modal-header">
+    <a class="close" data-dismiss="modal">×</a>
+    <h3>Các môn học không có điều kiện ràng buộc:</h3>
+  </div>
+  <div class="modal-body">
+    <p id="othercourses"></p>
+  </div>
+ 
+</div>
+
+<div class="container-fluid">
+ <div class="navbar navbar-fixed-top" id="mynavbar">
+         <div class="navbar-inner" >
+		        <div class="container-fluid" >
+		            <div class="input-append">			            
+			                <form class="navbar-search  pull-left">
+					    <input type="text" id="msv" class="input-xxlarge search-query" placeholder="Mã sinh viên">
+
+					    		<button id="btn" class="btn-primary btn-large" class="btn">Hướng dẫn đăng kí môn học</button>	
+
+					    </form>
+			            <div class="btn-group dropdown pull-right">
+    
+    <button class="btn-large btn-success dropdown-toggle " data-toggle="dropdown">
+    	<span>Hướng dẫn sử dụng</span><span class="caret"></span>
+    </button>
+		    <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">
+						    <li><a tabindex="-1" href="#myModal" data-toggle="modal">Hướng dẫn sử dụng</a></li>
+						    <li><a tabindex="-1" href="#myModal2" data-toggle="modal">Các môn không có điều kiện ràng buộc</a></li>						   
+						    </ul>  
+    		</div>		             
+		        	</div>
+ 
+	        	</div>
+	           
+			           	   
+					    
+       </div>
+			          
+	</div>  
+	<div class="container-fluid" >
+		
+		<div class="row-fluid" id="main">
+				
+			<div id="aaa" class="span12">
+				
+				 <svg id="tags" >
+		    		</svg>	   
+			</div>
+
+			
+		</div>
+		
+	</div>
+</div>
+
+<script src="js/jquery.js"></script>  
+ <script src="js/autocomplete.js" type="text/javascript"></script>
+<script src="js/bootstrap.min.js"></script>  
+<script src="js/score.js"></script>  
+<script src="js/main2.js"></script>
+</body>  
+</html>  
