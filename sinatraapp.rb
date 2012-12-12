@@ -87,7 +87,13 @@ mas = 1
 		return '{"error":"error3"}' 
 	end
 	ls_replace = res_hash_replace[:mon_thay_the_response][:mon_thay_the_result][:diffgram][:document_element]
-	if (ls_replace) then ls_replace = ls_replace[:mon_thay_the]
+	if (ls_replace) then 		
+		temp = ls_replace[:mon_thay_the]
+		if (temp[:ma_mon_hoc1]) then 
+			ls_replace = Array.new
+			ls_replace.push(temp)
+		end
+		
 	else
 		puts "error4"
 	end
@@ -97,7 +103,7 @@ mas = 1
 		puts "error5";
 		return '{"error":"error5"}' 
 	end
-
+	
 	ls_courses.each do |item|
 		temp = item[:ma_mon_hoc].strip
 		sbjs[temp] = 0		
@@ -129,12 +135,8 @@ mas = 1
 	outside = '#FF9900'
 	outside_fail = '#FF99FF'
 	if (ls_replace) then 				
-		ls_replace.each do |item|	
-			
-				
-			mon1 = item[:ma_mon_hoc1].strip
-			puts 'mon1: ' + mon1 
-
+		ls_replace.each do |item|								
+			mon1 = item[:ma_mon_hoc1].strip			
 			mon2 = item[:ma_mon_hoc2].strip
 			
 			if (status[mon1]) then 
@@ -152,8 +154,9 @@ mas = 1
 
 
 		if (!deps[mon1]) then deps[mon1] = Array.new end
-
+		if (!prev[mon2]) then prev[mon2] = Array.new end
 		deps[mon1].push(mon2)
+		prev[mon2].push(mon1)
 
 		if (sbjs[mon1]) then
 			sbjs[mon1] = sbjs[mon1] + 1
@@ -232,7 +235,7 @@ mas = 1
 	end
 
 	enable = '#9900FF'
-
+=begin
 	courses.each do |k, v|
 		temp = deps[k]
 		if (temp) then 
@@ -251,7 +254,25 @@ mas = 1
 			end
 		end
 	end
-
+=end
+	courses.each do |k, v|
+		truoc = prev[k]
+		sau = deps[k]
+		if (sau) then status[k]['leaf'] = 0 else status[k]['leaf'] = 1 end
+		if (status[k]['nhom'] == 1 and status[k]['tinhtrang'] == disable) then 
+			status[k]['tinhtrang'] = enable
+		end
+		if (truoc and status[k]['tinhtrang'] == disable) then 
+			duocdk = true
+			truoc.each do |montruoc|
+				if (status[montruoc]['tinhtrang'] == disable or status[montruoc]['tinhtrang'] == enable) then					
+					duocdk = false
+				end	
+			end	
+			if (duocdk == true ) then status[k]['tinhtrang'] = enable 
+			else status[k]['tinhtrang'] = disable end
+		end
+	end
 	sbjs.each do |k,v|
 		if (v > 0) then 			
 			nodes.push({"name" => status[k]['ten'], 
