@@ -16,13 +16,23 @@ end
 get '/check/:id' do |id|
 	msv = id.strip
 	client = Savon.client("http://10.1.0.237:8082/Services.asmx?wsdl")
-	response = client.request(:tinh_trang_sinh_vien) do
+	response = client.request(:thong_tin_sinh_vien) do		
 		soap.body = {:masinhvien => msv}
 	end
 	res_hash = response.body.to_hash
-	ls = res_hash[:tinh_trang_sinh_vien_response][:tinh_trang_sinh_vien_result][:diffgram][:document_element]
-	if (ls != nil) then ls.to_json 
-	else 'null' end
+	File.open("D:\\testcheck.json", "w") do |f|
+		f.write(JSON.pretty_generate(res_hash))
+	end
+	ls = res_hash[:thong_tin_sinh_vien_response][:thong_tin_sinh_vien_result][:diffgram][:document_element]
+	if (ls != nil) then 	
+		ls = ls[:thong_tin_sinh_vien]			
+		tinchi = ls[:dao_tao_theo_tin_chi]			
+		if (tinchi == false)  then
+			return '{"error":"nienche"}'
+		else
+			ls.to_json 
+		end
+	else return '{"error":"khongtontai"}' end
 end
 get '/:id' do |id|
 	puts 'request new'
@@ -88,10 +98,12 @@ mas = 1
 	end
 	ls_replace = res_hash_replace[:mon_thay_the_response][:mon_thay_the_result][:diffgram][:document_element]
 	if (ls_replace) then 		
-		temp = ls_replace[:mon_thay_the]
-		if (temp[:ma_mon_hoc1]) then 
+		temp = ls_replace[:mon_thay_the]		
+		if (temp.is_a?(Hash)) then 
 			ls_replace = Array.new
 			ls_replace.push(temp)
+		else (temp.is_a?(Array))
+			ls_replace = temp
 		end
 		
 	else
@@ -111,7 +123,7 @@ mas = 1
 		status[temp] = {}
 		status[temp]['makhoi'] = item[:ma_khoi_kien_thuc].strip
 		status[temp]['khoikienthuc'] = item[:ten_khoi_kien_thuc].strip
-		status[temp]['tinhtrang'] = disable
+		status[temp]['tinhtrang'] = disable		
 		status[temp]['ten'] = item[:ten_mon_hoc].strip
 		status[temp]['khoiluong'] = item[:tong_so].strip	
 		status[temp]['nhom'] = 1
@@ -139,10 +151,10 @@ mas = 1
 			mon1 = item[:ma_mon_hoc1].strip			
 			mon2 = item[:ma_mon_hoc2].strip
 			
-			if (status[mon1]) then 
-				status[mon1]['thaythe'] = mon2			
-				replace[mon2] = mon1
-			end
+
+			if (status[mon1] == nil) then status[mon1] = {} end
+			status[mon1]['thaythe'] = mon2			
+			replace[mon2] = mon1			
 		end
 	end
 	ls_dk.each do |item| 		
@@ -187,10 +199,16 @@ mas = 1
 	if (ls ) then
 		ls.each do |item|
 			temp = item[:ma_mon_hoc].strip
+			diem =  item[:column1].strip	
 			if (status[temp] ) then 
 				status[temp]['tinhtrang'] = pass			
+				status[temp]['diem'] = diem				
 			else 
-				puts 'No pass: ' + temp
+				if (replace[temp] == nil) then 
+					status[temp] = {}
+					status[temp]['tinhtrang'] = pass			
+					status[temp]['diem'] = diem
+				end
 			end
 		end
 	end
@@ -198,9 +216,14 @@ mas = 1
 		ls2.each do |item|
 			temp = item[:ma_mon_hoc].strip
 			if (status[temp]) then 
-				status[temp]['tinhtrang'] = fail			
+				status[temp]['tinhtrang'] = fail	
+				status[temp]['diem'] = item[:column1].strip		
 			else 
-				puts 'No fail: ' + temp
+				if (replace[temp] == nil) then 
+					status[temp] = {}
+					status[temp]['tinhtrang'] = fail			
+					status[temp]['diem'] = diem
+				end
 			end	
 		end
 	end
@@ -285,6 +308,7 @@ mas = 1
 					"khoikienthuc" => status[k]['khoikienthuc'],
 					"leaf" => status[k]['leaf'],
 					"dvht" => status[k]['khoiluong'],
+					"diem" => status[k]['diem'],
 					"thaythe" => (status[k]['thaythe']) ?   status[k]['thaythe'] : '' })
 		end
 	end
