@@ -1,6 +1,11 @@
  $('#focusmsv').click(function(){
   $('#msv').focus();
- })
+ });
+ $("#btnhssv").click(function(){
+  $("#hssv").animate({ 'height':'toggle','opacity':'toggle'});
+    
+ });
+ 
     var fill = d3.scale.category10();  
   $('#btn').click(
   function () {
@@ -14,9 +19,22 @@
           alert('Mã sinh viên này không tồn tại');
         } else if (data.error == 'nienche') {
           alert('Hệ thống này không dành cho hệ đào tạo niên chế');
-        } else{
+        } else if (data.error == 'error5'){
+          alert('Không tồn tại điều kiện trước sau');
+        }
+        else{                    
+           $('#masinhvien').html(data.masinhvien);
+          $('#malop').html(data.malop);
+          $('#gioitinh').html(data.gioitinh);
+          $('#hovaten').html(data.hovaten);
+          $('#tenhedaotao').html(data.tenhedaotao);
+          $('#daotao').html(data.daotao);
+          $('#tinhtrang').html(data.tinhtrang);
+          $('#khoahoc').html(data.khoahoc);
+          $('#tennganh').html(data.tennganh);
           $('#tags').empty();
-        callback();  
+          $('othercourses').empty();
+          callback();         
         }      
       }
       else 
@@ -31,7 +49,17 @@
 
       d3.json('/get/' + msv, function(json) {
          
-        
+        if (json.other) {
+          
+          for (var i = 0; i < json.other.length; i++) {
+            $('#othercourses').append('<span class="kodk">' + json.other[i].name + '</span>, \t');
+          }          
+           
+        }
+        if (json.nodes.length == 0) {
+          alert('Không có điều kiện ràng buộc các môn');
+          return;
+        }
         var parsed = {}       
           
           parsed['tuchon'] = {};
@@ -47,18 +75,12 @@
           }
           
         }
-        if (json.other) {
-          
-          for (var i = 0; i < json.other.length; i++) {
-            $('#othercourses').append('<span class="label label-info">' + json.other[i].name + '</span>\t');
-          }          
-           
-        }
+       
         
 
         var dis = 500;
         var force = d3.layout.force()
-        .charge(-900)
+        .charge(-1000)
         .distance(150)  
         .gravity(0.05)
         .nodes(json.nodes)
@@ -114,8 +136,8 @@
           .attr('stroke-width', "1") 
           .attr('stroke-opacity', ".3")
           .attr("stroke", function(d) {
-            if (d.tuchon == 1)
-             return 'orange'; 
+            if (d.thaythe.length > 1)
+             return 'red'; 
             else return 'black';
           })
           .text(function(d) { return  d.name ; })
@@ -124,19 +146,24 @@
         
          node.append('title')
           .text(function(d) { return 'Mã môn:\t' + d.mamon +
+              '\nMôn thay thế:\t' + d.thaythe +
                '\nSố tín chỉ:\t' + d.dvht + 
+               '\nĐiểm:\t' + d.diem  +
              '\nKhối kiến thức:\t' + d.khoikienthuc +
              '\nNhóm tự chọn:\t' + d.tuchon +
               '\nTên nhóm:\t' + d.tennhom; });
           node2.append('title')
           .text(function(d) { return 'Mã môn:\t' + d.mamon +
+            '\nMôn thay thế:\t' + d.thaythe +
                '\nSố tín chỉ:\t' + d.dvht + 
+                '\nĐiểm:\t' + d.diem  +
              '\nKhối kiến thức:\t' + d.khoikienthuc +
              '\nNhóm tự chọn:\t' + d.somontuchon  +
              '\nTên nhóm:\t' + d.tennhom; });
        
-        
-      
+            
+
+
         force.on("tick", function(e) {    
 
 
@@ -144,7 +171,7 @@
         node.each(function(d) {       
           d.x += ((5-d.group) * dis2 - d.x) ;  
           d.x = dis2 * 5 - d.x;    
-               
+              
         });
         node2.each(function(d) {      
           d.x += ((5-d.group) * dis2 - d.x) ;  
@@ -159,16 +186,16 @@
         
         link.
         attr("x1", function(d) { return d.source.x; })
-          .attr("y1", function(d) { return d.source.y ; })
+          .attr("y1", function(d) { return d.source.y -250 ; })
           .attr("x2", function(d) { return d.target.x; })
-          .attr("y2", function(d) { return d.target.y  ; })
+          .attr("y2", function(d) { return d.target.y -250 ; })
           .attr("marker-end","url(#arrow)");
         
         node.attr("cx", function(d) { return d.x ; })
-          .attr("cy", function(d) { return d.y ; });
+          .attr("cy", function(d) { return d.y -250; });
 
         node2.attr("x", function(d) { return d.x - 20 ; })
-          .attr("y", function(d) { return d.y - 10 ; });
+          .attr("y", function(d) { return d.y - 260 ; });
         
         text.attr("x", function(d) { 
             if (d.leaf == 1)
@@ -180,10 +207,10 @@
           })
           .attr("y", function(d) { 
               if (d.leaf == 0) {
-                return d.y - 20; 
+                return d.y - 270; 
               }                
               else
-                return d.y + 5;
+                return d.y - 245;
             });
         });
 
