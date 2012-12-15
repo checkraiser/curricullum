@@ -3,8 +3,8 @@ var express = require("express"),
     redis   = require('redis'),
     client  = redis.createClient(),
     rest    = require('restler'),
-    port    = parseInt(process.env.PORT, 10) || 4569;
-    
+    port    = parseInt(process.env.PORT, 10) || 8080;
+	
 
 app.configure(function(){
   app.use(express.methodOverride());
@@ -20,40 +20,58 @@ app.configure(function(){
 
 app.get("/get/:id", function(req, res){  
   var id = req.params.id;
- var rid = client.get(id);
- if (!rid) {
-     rest.get('http://10.1.0.195:4567/' + id).on('complete', function(data) {    
-      client.set(id, data);
-      client.expire(id, 10);
-      res.end(JSON.stringify(data));
+console.log('request: ' + id);
+client.get(id, function(err, rid){
+	if (!rid) {
+     rest.get('http://127.0.0.1:4567/' + id).on('complete', function(data) {    
+        if (data.error) {
+		      client.set(id, JSON.stringify(data));
+				client.expire(id, 100);
+        	  res.end(JSON.stringify(data));
+		
+        } else {
+			
+      		client.set(id, JSON.stringify(data));
+      		client.expire(id, 3600);
+      		res.end(JSON.stringify(data)); 
+		}
     });
    }
-   else {    
-    res.end(JSON.strigify(rid));
-   }        
+   else {   
+		client.expire(id, 3600);
+		res.end(JSON.stringify(JSON.parse(rid)));
+   }       	
+});  
 });
+
+
 app.get("/check/:id", function(req, res){
-  var id = req.params.id;
+	var id = req.params.id;
 	var ckey = 'check:' + id;
-	var cid = client.get(ckey);
-	if (!cid) {
-		rest.get('http://10.1.0.195:4567/check/' + id).on('complete', function(data) {
-      if (data.error) {
-        res.end(JSON.stringify(data));
-      }
-			client.set(ckey, data);
-			client.expire(ckey, 3600);
-			res.end(JSON.stringify(data));
+	client.get(ckey, function(err, cid){
+		if (!cid) {
+		rest.get('http://127.0.0.1:4567/check/' + id).on('complete', function(data) {
+	      if (data.error) {			
+			client.set(ckey, JSON.stringify(data));
+			client.expire(ckey, 3600);      
+        	res.end(JSON.stringify(data));
+	      } else {		  
+        	client.set(ckey, JSON.stringify(data));
+			client.expire(ckey, 3600);      
+	      	res.end(JSON.stringify(data));
+	      }
+			
 		});
-	} else {
-		res.end(JSON.strigify(cid));
+	} else {	
+		client.expire(ckey, 3600);      
+		res.end(JSON.stringify(JSON.parse(cid)));
 	}
+	});
+	
 });
 app.get("/", function(req, res) {    
-  res.render("profile.html");
+  res.redirect("/index.html");
 });
-app.get("/test", function(req, res){
-  res.render("profile2.html");
-})
+
 console.log("running");
 app.listen(port);
