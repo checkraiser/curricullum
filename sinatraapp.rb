@@ -20,18 +20,33 @@ get '/check/:id' do |id|
 		soap.body = {:masinhvien => msv}
 	end
 	res_hash = response.body.to_hash
-	File.open("D:\\testcheck.json", "w") do |f|
-		f.write(JSON.pretty_generate(res_hash))
-	end
-	ls = res_hash[:thong_tin_sinh_vien_response][:thong_tin_sinh_vien_result][:diffgram][:document_element]
+	
+	ls = res_hash[:thong_tin_sinh_vien_response][:thong_tin_sinh_vien_result][:diffgram][:document_element];
 	if (ls != nil) then 	
 		ls = ls[:thong_tin_sinh_vien]			
-		tinchi = ls[:dao_tao_theo_tin_chi]			
+		tinchi = ls[:dao_tao_theo_tin_chi]		
+=begin
+		encoded_string = ls[:anh_sinh_vien].strip
+		File.open("D:\\anhsinhvien.jpg", "wb") do |file|
+	    	file.write(Base64.decode64(encoded_string))
+		end
+=end
 		if (tinchi == false)  then
 			return '{"error":"nienche"}'
 		else
-			ls.to_json 
+			temp = {}			
+			temp["masinhvien"] = ls[:ma_sinh_vien].strip			
+			temp["hovaten"] = ls[:ho_dem].strip + ' ' + ls[:ten].strip
+			temp["gioitinh"] = ls[:gioi_tinh].strip
+			temp["malop"] = ls[:ma_lop].strip
+			temp["tennganh"] = ls[:ten_nganh].strip
+			temp["tenhedaotao"] = ls[:ten_he_dao_tao].strip		
+			temp["daotao"] = ls[:dao_tao].strip
+			temp["tinhtrang"] = ls[:tinh_trang].strip
+			temp["khoahoc"] = ls[:ten_khoa_hoc].strip
+			temp.to_json
 		end
+		
 	else return '{"error":"khongtontai"}' end
 end
 get '/:id' do |id|
@@ -53,9 +68,9 @@ courses2 = {}
 mas = 1
 
 
-	msv = id.strip
-	i = 0
-	client = Savon.client("http://10.1.0.237:8082/Services.asmx?wsdl")
+	msv = id.strip;
+	i = 0;
+	client = Savon.client("http://10.1.0.237:8082/Services.asmx?wsdl");
 	response = client.request(:mon_sinh_vien_da_qua) do
 		soap.body = {:masinhvien => msv }
 	end
@@ -72,26 +87,48 @@ mas = 1
 		soap.body = {:masinhvien => msv }
 	end
 	
-	res_hash = response.body.to_hash
-	res_hash2 = response2.body.to_hash
-	res_hash_courses = response_courses.body.to_hash
-	res_hash_replace = response_replace.body.to_hash
-	res_hash_dk = response_dk.body.to_hash
+	res_hash = response.body.to_hash;
+	res_hash2 = response2.body.to_hash;
+	res_hash_courses = response_courses.body.to_hash;
+	res_hash_replace = response_replace.body.to_hash;
+	res_hash_dk = response_dk.body.to_hash;
 
 	ls = res_hash[:mon_sinh_vien_da_qua_response][:mon_sinh_vien_da_qua_result][:diffgram][:document_element]
-	if (ls ) then ls = ls[:mon_sinh_vien_da_qua]
+	if (ls ) then 
+		temp = ls[:mon_sinh_vien_da_qua];
+		if (temp.is_a?(Hash)) then 
+			ls = Array.new
+			ls.push(temp);
+		else (temp.is_a?(Array))
+			ls = temp;
+		end
 	else 
-		puts "error1";
+		puts "Da qua het";
 		#return '{"error":"error1"} '
 	end
 	ls2 = res_hash2[:mon_sinh_vien_no_response][:mon_sinh_vien_no_result][:diffgram][:document_element]
-	if (ls2) then ls2 = ls2[:mon_sinh_vien_no]
+	if (ls2) then 
+		temp = ls2[:mon_sinh_vien_no]
+		if (temp.is_a?(Hash)) then 
+			ls2 = Array.new
+			ls2.push(temp)
+		else (temp.is_a?(Array))
+			ls2 = temp
+		end
 	else 
-		puts "error2";
+		puts "Khong co sinh vien no";
 		#return '{"error":"error2"}' 
 	end
 	ls_courses = res_hash_courses[:khung_chuong_trinh_response][:khung_chuong_trinh_result][:diffgram][:document_element]
-	if (ls_courses) then ls_courses = ls_courses[:khung_chuong_trinh]
+	if (ls_courses) then 
+		temp = ls_courses[:khung_chuong_trinh]
+		
+		if (temp.is_a?(Hash)) then 
+			ls_courses = Array.new
+			ls_courses.push(temp)
+		else (temp.is_a?(Array))
+			ls_courses = temp
+		end
 	else 
 		puts "error3";
 		return '{"error":"error3"}' 
@@ -107,13 +144,19 @@ mas = 1
 		end
 		
 	else
-		puts "error4"
+		puts "Khong co mon thay the"
 	end
 	ls_dk = res_hash_dk[:dieu_kien_truoc_sau_response][:dieu_kien_truoc_sau_result][:diffgram][:document_element]
-	if (ls_dk) then ls_dk = ls_dk[:dieu_kien_truoc_sau]
+	if (ls_dk) then 
+		temp = ls_dk[:dieu_kien_truoc_sau]
+		if (temp.is_a?(Hash)) then 
+			ls_dk = Array.new
+			ls_dk.push(temp)
+		else (temp.is_a?(Array))
+			ls_dk = temp
+		end
 	else 
-		puts "error5";
-		return '{"error":"error5"}' 
+		puts "Khong co dieu kien truoc sau";		
 	end
 	
 	ls_courses.each do |item|
@@ -154,44 +197,45 @@ mas = 1
 
 			if (status[mon1] == nil) then status[mon1] = {} end
 			status[mon1]['thaythe'] = mon2			
-			replace[mon2] = mon1			
+			replace[mon2] = mon1
 		end
 	end
-	ls_dk.each do |item| 		
-		mon1 = item[:ma_mon_hoc1].strip
-		mon2 = item[:ma_mon_hoc2].strip
+	if (ls_dk) then 
+		ls_dk.each do |item| 		
+			mon1 = item[:ma_mon_hoc1].strip
+			mon2 = item[:ma_mon_hoc2].strip
 
-		if (replace[mon1]) then mon1 = replace[mon1] end
-		if (replace[mon2]) then mon2 = replace[mon2] end
+			if (replace[mon1]) then mon1 = replace[mon1] end
+			if (replace[mon2]) then mon2 = replace[mon2] end
 
 
-		if (!deps[mon1]) then deps[mon1] = Array.new end
-		if (!prev[mon2]) then prev[mon2] = Array.new end
-		deps[mon1].push(mon2)
-		prev[mon2].push(mon1)
+			if (!deps[mon1]) then deps[mon1] = Array.new end
+			if (!prev[mon2]) then prev[mon2] = Array.new end
+			deps[mon1].push(mon2)
+			prev[mon2].push(mon1)
 
-		if (sbjs[mon1]) then
-			sbjs[mon1] = sbjs[mon1] + 1
-		else
-			puts "error subject " + mon1
-			sbjs[mon1] = 1
+			if (sbjs[mon1]) then
+				sbjs[mon1] = sbjs[mon1] + 1
+			else
+				puts "error subject " + mon1
+				sbjs[mon1] = 1
+			end
+
+			if (sbjs[mon2]) then
+				sbjs[mon2] = sbjs[mon2] + 1		
+			else
+				puts "error subject2: " + mon2
+				sbjs[mon2] = 1
+			end
+
+			
 		end
-
-		if (sbjs[mon2]) then
-			sbjs[mon2] = sbjs[mon2] + 1		
-		else
-			puts "error subject2: " + mon2
-			sbjs[mon2] = 1
+		ls_dk.each do |item| 
+			mon1 = item[:ma_mon_hoc1].strip
+			mon2 = item[:ma_mon_hoc2].strip		
+			mas = [ro(status, deps, mon1, 1),mas].max		
 		end
-
-		
 	end
-	ls_dk.each do |item| 
-		mon1 = item[:ma_mon_hoc1].strip
-		mon2 = item[:ma_mon_hoc2].strip		
-		mas = [ro(status, deps, mon1, 1),mas].max		
-	end
-
 
 
 	pass = '#006666'	
@@ -199,7 +243,9 @@ mas = 1
 	if (ls ) then
 		ls.each do |item|
 			temp = item[:ma_mon_hoc].strip
-			diem =  item[:column1].strip	
+			diem =  item[:column1].strip
+			if (replace[temp]) then temp = replace[temp] end
+
 			if (status[temp] ) then 
 				status[temp]['tinhtrang'] = pass			
 				status[temp]['diem'] = diem				
@@ -215,6 +261,8 @@ mas = 1
 	if (ls2) then 
 		ls2.each do |item|
 			temp = item[:ma_mon_hoc].strip
+			diem =  item[:column1].strip
+			if (replace[temp]) then temp = replace[temp] end
 			if (status[temp]) then 
 				status[temp]['tinhtrang'] = fail	
 				status[temp]['diem'] = item[:column1].strip		
@@ -244,19 +292,21 @@ mas = 1
 		courses2_json.push({"name" => status[k]['ten']})
 	end
 	
-	courses.each do |k,v|		
+	courses.each do |k,v|	
+		if (status[k]) then 	
 			if (status[k]['makhoi']=='4') then 
 				status[k]['nhom'] = mas + 1
 				ro(status, deps, k, mas + 1)				
-			end 			
+			end 		
+		end	
 	end
+	if (ls_dk) then 
+		ls_dk.each do |item| 
+			links.push({"source" => courses[item[:ma_mon_hoc1].strip],
+						"target" => courses[item[:ma_mon_hoc2].strip]})		
 
-	ls_dk.each do |item| 
-		links.push({"source" => courses[item[:ma_mon_hoc1].strip],
-					"target" => courses[item[:ma_mon_hoc2].strip]})		
-
+		end
 	end
-
 	enable = '#9900FF'
 =begin
 	courses.each do |k, v|
@@ -281,23 +331,28 @@ mas = 1
 	courses.each do |k, v|
 		truoc = prev[k]
 		sau = deps[k]
-		if (sau) then status[k]['leaf'] = 0 else status[k]['leaf'] = 1 end
-		if (status[k]['nhom'] == 1 and status[k]['tinhtrang'] == disable) then 
-			status[k]['tinhtrang'] = enable
-		end
-		if (truoc and status[k]['tinhtrang'] == disable) then 
-			duocdk = true
-			truoc.each do |montruoc|
-				if (status[montruoc]['tinhtrang'] == disable or status[montruoc]['tinhtrang'] == enable) then					
-					duocdk = false
+		if (status[k]) then 
+			if (sau) then status[k]['leaf'] = 0 else status[k]['leaf'] = 1 end
+			if (status[k]['nhom'] == 1 and status[k]['tinhtrang'] == disable) then 
+				status[k]['tinhtrang'] = enable
+			end
+			if (truoc and status[k]['tinhtrang'] == disable) then 
+				duocdk = true
+				truoc.each do |montruoc|
+					if (status[montruoc]) then 
+						if (status[montruoc]['tinhtrang'] == disable or status[montruoc]['tinhtrang'] == enable) then					
+							duocdk = false
+						end	
+					end
 				end	
-			end	
-			if (duocdk == true ) then status[k]['tinhtrang'] = enable 
-			else status[k]['tinhtrang'] = disable end
-		end
+				if (duocdk == true ) then status[k]['tinhtrang'] = enable 
+				else status[k]['tinhtrang'] = disable end
+			end
+		end 
 	end
 	sbjs.each do |k,v|
-		if (v > 0) then 			
+		if (v > 0) then 	
+			if (status[k]) then 		
 			nodes.push({"name" => status[k]['ten'], 
 					"group" => status[k]['nhom'], 
 					"color" => status[k]['tinhtrang'],
@@ -308,8 +363,9 @@ mas = 1
 					"khoikienthuc" => status[k]['khoikienthuc'],
 					"leaf" => status[k]['leaf'],
 					"dvht" => status[k]['khoiluong'],
-					"diem" => status[k]['diem'],
+					"diem" => (status[k]['diem']) ? status[k]['diem'] : '',
 					"thaythe" => (status[k]['thaythe']) ?   status[k]['thaythe'] : '' })
+			end
 		end
 	end
 
@@ -325,9 +381,11 @@ def ro(status, deps, item, mas)
 		return status[item]['nhom']
 	  end		 	
 		deps[item].each do |it|
-			status[it]['nhom'] = [status[it]['nhom'],status[item]['nhom'] + 1].max				
-			tmp = ro(status, deps, it, status[it]['nhom'])		
-			mas = [tmp, mas].max
+			if (status[it]) then 
+				status[it]['nhom'] = [status[it]['nhom'],status[item]['nhom'] + 1].max				
+				tmp = ro(status, deps, it, status[it]['nhom'])		
+				mas = [tmp, mas].max
+			end
 		end	
 	return mas	
 end
