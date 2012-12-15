@@ -8,7 +8,7 @@ require 'sinatra'
 
 
 disable = '#FF0000'
-
+mdanghoc = '#0033FF'
 
 before do
     content_type 'application/json'
@@ -65,6 +65,7 @@ status = {}
 diem = {}
 replace = {}
 courses2 = {}
+danghoc = {}
 mas = 1
 
 
@@ -86,12 +87,16 @@ mas = 1
 	response_dk = client.request(:dieu_kien_truoc_sau) do
 		soap.body = {:masinhvien => msv }
 	end
-	
+	response_danghoc = client.request(:mon_hoc_trong_ky) do
+		soap.body = {:masinhvien => msv}
+	end
+
 	res_hash = response.body.to_hash;
 	res_hash2 = response2.body.to_hash;
 	res_hash_courses = response_courses.body.to_hash;
 	res_hash_replace = response_replace.body.to_hash;
 	res_hash_dk = response_dk.body.to_hash;
+	res_hash_danghoc = response_danghoc.to_hash;
 
 	ls = res_hash[:mon_sinh_vien_da_qua_response][:mon_sinh_vien_da_qua_result][:diffgram][:document_element]
 	if (ls ) then 
@@ -106,7 +111,7 @@ mas = 1
 		puts "Da qua het";
 		#return '{"error":"error1"} '
 	end
-	ls2 = res_hash2[:mon_sinh_vien_no_response][:mon_sinh_vien_no_result][:diffgram][:document_element]
+	ls2 = res_hash2[:mon_sinh_vien_no_response][:mon_sinh_vien_no_result][:diffgram][:document_element];
 	if (ls2) then 
 		temp = ls2[:mon_sinh_vien_no]
 		if (temp.is_a?(Hash)) then 
@@ -116,10 +121,21 @@ mas = 1
 			ls2 = temp
 		end
 	else 
-		puts "Khong co sinh vien no";
+		puts "Khong co mon no";
 		#return '{"error":"error2"}' 
 	end
-	ls_courses = res_hash_courses[:khung_chuong_trinh_response][:khung_chuong_trinh_result][:diffgram][:document_element]
+	ls_danghoc = res_hash_danghoc[:mon_hoc_trong_ky_response][:mon_hoc_trong_ky_result][:diffgram][:document_element];
+	if (ls_danghoc) then
+		temp = ls_danghoc[:mon_hoc_trong_ky]
+		if (temp.is_a?(Hash)) then 
+			ls_danghoc = Array.new
+			ls_danghoc.push(temp)
+		else (temp.is_a?(Array))
+			ls_danghoc = temp
+		end
+	end
+
+	ls_courses = res_hash_courses[:khung_chuong_trinh_response][:khung_chuong_trinh_result][:diffgram][:document_element];	
 	if (ls_courses) then 
 		temp = ls_courses[:khung_chuong_trinh]
 		
@@ -158,7 +174,11 @@ mas = 1
 	else 
 		puts "Khong co dieu kien truoc sau";		
 	end
-	
+	ls_danghoc.each do |item|
+		temp = item[:ma_mon_hoc].strip
+		danghoc[temp] = 1
+	end
+
 	ls_courses.each do |item|
 		temp = item[:ma_mon_hoc].strip
 		sbjs[temp] = 0		
@@ -166,7 +186,8 @@ mas = 1
 		status[temp] = {}
 		status[temp]['makhoi'] = item[:ma_khoi_kien_thuc].strip
 		status[temp]['khoikienthuc'] = item[:ten_khoi_kien_thuc].strip
-		status[temp]['tinhtrang'] = disable		
+		if (danghoc[temp] == 1) then status[temp]['tinhtrang'] = mdanghoc		
+		else status[temp]['tinhtrang'] = disable		end
 		status[temp]['ten'] = item[:ten_mon_hoc].strip
 		status[temp]['khoiluong'] = item[:tong_so].strip	
 		status[temp]['nhom'] = 1
@@ -198,6 +219,9 @@ mas = 1
 			if (status[mon1] == nil) then status[mon1] = {} end
 			status[mon1]['thaythe'] = mon2			
 			replace[mon2] = mon1
+			if (danghoc[mon2] == 1) then 
+				status[mon1]['tinhtrang'] = mdanghoc
+			end
 		end
 	end
 	if (ls_dk) then 
@@ -264,8 +288,13 @@ mas = 1
 			diem =  item[:column1].strip
 			if (replace[temp]) then temp = replace[temp] end
 			if (status[temp]) then 
-				status[temp]['tinhtrang'] = fail	
-				status[temp]['diem'] = item[:column1].strip		
+				if (danghoc[temp] == 1) then 
+					status[temp]['tinhtrang'] = mdanghoc
+					status[temp]['diem'] = item[:column1].strip	
+				else
+					status[temp]['tinhtrang'] = fail	
+					status[temp]['diem'] = item[:column1].strip	
+				end	
 			else 
 				if (replace[temp] == nil) then 
 					status[temp] = {}
@@ -293,7 +322,9 @@ mas = 1
 	end
 	
 	courses.each do |k,v|	
-		if (status[k]) then 	
+
+		if (status[k]) then 				
+
 			if (status[k]['makhoi']=='4') then 
 				status[k]['nhom'] = mas + 1
 				ro(status, deps, k, mas + 1)				
@@ -336,6 +367,7 @@ mas = 1
 			if (status[k]['nhom'] == 1 and status[k]['tinhtrang'] == disable) then 
 				status[k]['tinhtrang'] = enable
 			end
+
 			if (truoc and status[k]['tinhtrang'] == disable) then 
 				duocdk = true
 				truoc.each do |montruoc|
@@ -358,7 +390,7 @@ mas = 1
 					"color" => status[k]['tinhtrang'],
 					"mamon" => k,
 					"tuchon" => status[k]['tuchon'],
-					"tennhom" => status[k]['tennhom'],
+					"tennhom" => (status[k]['tennhom']) ? status[k]['tennhom']: '',
 					"somontuchon" => status[k]['somontuchon'],
 					"khoikienthuc" => status[k]['khoikienthuc'],
 					"leaf" => status[k]['leaf'],
