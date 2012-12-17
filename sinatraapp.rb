@@ -174,11 +174,12 @@ mas = 1
 	else 
 		puts "Khong co dieu kien truoc sau";		
 	end
-	ls_danghoc.each do |item|
-		temp = item[:ma_mon_hoc].strip
-		danghoc[temp] = 1
+	if (ls_danghoc) then 
+		ls_danghoc.each do |item|
+			temp = item[:ma_mon_hoc].strip
+			danghoc[temp] = 1
+		end
 	end
-
 	ls_courses.each do |item|
 		temp = item[:ma_mon_hoc].strip
 		sbjs[temp] = 0		
@@ -191,17 +192,12 @@ mas = 1
 		status[temp]['ten'] = item[:ten_mon_hoc].strip
 		status[temp]['khoiluong'] = item[:tong_so].strip	
 		status[temp]['nhom'] = 1
+		status[temp]['tennhom'] = (item[:ten_nhom])? item[:ten_nhom].strip : '';
 		if (item[:tu_chon]) then 
 			if (item[:so_mon_phai_chon]) then 
-				status[temp]['somontuchon'] = item[:so_mon_phai_chon].strip + '/' + item[:tong_so_mon_tu_chon].strip
-				if (item[:ten_nhom] ) then 
-					status[temp]['tennhom'] = item[:ten_nhom].strip
-				else
-					status[temp]['tennhom'] = ''
-				end
+				status[temp]['somontuchon'] = item[:so_mon_phai_chon].strip + '/' + item[:tong_so_mon_tu_chon].strip				
 			else
-				status[temp]['somontuchon'] = ''
-				status[temp]['tennhom'] = ''
+				status[temp]['somontuchon'] = ''				
 			end
 
 			status[temp]['tuchon'] = 1 
@@ -267,7 +263,7 @@ mas = 1
 	if (ls ) then
 		ls.each do |item|
 			temp = item[:ma_mon_hoc].strip
-			diem =  item[:column1].strip
+			diem =  item[:diem_max].strip
 			if (replace[temp]) then temp = replace[temp] end
 
 			if (status[temp] ) then 
@@ -285,15 +281,17 @@ mas = 1
 	if (ls2) then 
 		ls2.each do |item|
 			temp = item[:ma_mon_hoc].strip
-			diem =  item[:column1].strip
+			diem =  item[:diem_max].strip
 			if (replace[temp]) then temp = replace[temp] end
 			if (status[temp]) then 
 				if (danghoc[temp] == 1) then 
 					status[temp]['tinhtrang'] = mdanghoc
-					status[temp]['diem'] = item[:column1].strip	
+					status[temp]['diem'] = item[:diem_max].strip	
 				else
-					status[temp]['tinhtrang'] = fail	
-					status[temp]['diem'] = item[:column1].strip	
+					unless (status[temp]['tinhtrang'] == pass)
+						status[temp]['tinhtrang'] = fail	
+						status[temp]['diem'] = item[:diem_max].strip	
+					end
 				end	
 			else 
 				if (replace[temp] == nil) then 
@@ -316,10 +314,7 @@ mas = 1
 		end
 	end
 
-	courses2_json = []
-	courses2.each do |k,v|
-		courses2_json.push({"name" => status[k]['ten']})
-	end
+
 	
 	courses.each do |k,v|	
 
@@ -382,6 +377,15 @@ mas = 1
 			end
 		end 
 	end
+
+	courses2_json = {}
+	courses2.each do |k,v|		
+		temp_tn = (status[k]['tennhom']) ? status[k]['tennhom']: 'nogroup';
+		if (!courses2_json[temp_tn]) then courses2_json[temp_tn] = Array.new; end 
+		courses2_json[temp_tn].push({"name" => status[k]['ten'],
+				"color" => status[k]['tinhtrang']})	;		
+	end
+
 	sbjs.each do |k,v|
 		if (v > 0) then 	
 			if (status[k]) then 		
