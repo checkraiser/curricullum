@@ -1,15 +1,30 @@
-require 'csv'
-require 'json'
-require 'savon'
-
+require 'resque'
 require 'sinatra'
+require 'tire'
+require 'yajl/json_gem'
+require 'csv'
+require 'savon'
+require 'json'
 
 
 
 
 disable = '#FF0000'
 mdanghoc = '#0033FF'
+class Archive
+  @queue = :logging
 
+  def self.perform(ip, time, id)	
+    puts "From queue " + @queue.to_s 
+	
+	Tire.index 'logs3' do      
+      create
+      store :ip => ip,   :time => time, :msv => id
+      refresh
+    end
+	
+  end
+end
 before do
     content_type 'application/json'
 end
@@ -35,22 +50,21 @@ get '/check/:id' do |id|
 			return '{"error":"nienche"}'
 		else
 			temp = {}			
-			temp["masinhvien"] = ls[:ma_sinh_vien].strip			
-			temp["hovaten"] = ls[:ho_dem].strip + ' ' + ls[:ten].strip
-			temp["gioitinh"] = ls[:gioi_tinh].strip
-			temp["malop"] = ls[:ma_lop].strip
-			temp["tennganh"] = ls[:ten_nganh].strip
-			temp["tenhedaotao"] = ls[:ten_he_dao_tao].strip		
-			temp["daotao"] = ls[:dao_tao].strip
-			temp["tinhtrang"] = ls[:tinh_trang].strip
-			temp["khoahoc"] = ls[:ten_khoa_hoc].strip
+			temp["masinhvien"] = ls[:ma_sinh_vien].strip if ls[:ma_sinh_vien]
+			temp["hovaten"] = ls[:ho_dem].strip + ' ' + ls[:ten].strip if ls[:ho_dem] and ls[:ten]
+			temp["gioitinh"] = ls[:gioi_tinh].strip if ls[:gioi_tinh]
+			temp["malop"] = ls[:ma_lop].strip if ls[:ma_lop]
+			temp["tennganh"] = ls[:ten_nganh].strip if ls[:ten_nganh]
+			temp["tenhedaotao"] = ls[:ten_he_dao_tao].strip	if ls[:ten_he_dao_tao]
+			temp["daotao"] = ls[:dao_tao].strip if ls[:dao_tao]
+			temp["tinhtrang"] = ls[:tinh_trang].strip if ls[:tinh_trang]
+			temp["khoahoc"] = ls[:ten_khoa_hoc].strip if ls[:ten_khoa_hoc]
 			temp.to_json
 		end
 		
 	else return '{"error":"khongtontai"}' end
 end
-get '/:id' do |id|
-	puts 'request new'
+get '/:ip/:id' do |ip,id|	
 	nodes = []
 links = []
 tags = {}
@@ -70,26 +84,27 @@ mas = 1
 
 
 	msv = id.strip;
+	Resque.enqueue(Archive, ip, Time.now.to_s, msv)
 	i = 0;
 	client = Savon.client("http://10.1.0.237:8082/Services.asmx?wsdl");
 	response = client.request(:mon_sinh_vien_da_qua) do
-		soap.body = {:masinhvien => msv }
-	end
+		soap.body = {:masinhvien => msv };
+	end;
 	response2 = client.request(:mon_sinh_vien_no) do
-		soap.body = {:masinhvien => msv }
-	end
+		soap.body = {:masinhvien => msv };
+	end;
 	response_courses = client.request(:khung_chuong_trinh) do
-		soap.body = {:masinhvien => msv }
-	end
+		soap.body = {:masinhvien => msv };
+	end;
 	response_replace = client.request(:mon_thay_the) do
-		soap.body = {:masinhvien => msv}
-	end
+		soap.body = {:masinhvien => msv};
+	end;
 	response_dk = client.request(:dieu_kien_truoc_sau) do
-		soap.body = {:masinhvien => msv }
-	end
+		soap.body = {:masinhvien => msv };
+	end;
 	response_danghoc = client.request(:mon_hoc_trong_ky) do
-		soap.body = {:masinhvien => msv}
-	end
+		soap.body = {:masinhvien => msv};
+	end;
 
 	res_hash = response.body.to_hash;
 	res_hash2 = response2.body.to_hash;
@@ -98,7 +113,7 @@ mas = 1
 	res_hash_dk = response_dk.body.to_hash;
 	res_hash_danghoc = response_danghoc.to_hash;
 
-	ls = res_hash[:mon_sinh_vien_da_qua_response][:mon_sinh_vien_da_qua_result][:diffgram][:document_element]
+	ls = res_hash[:mon_sinh_vien_da_qua_response][:mon_sinh_vien_da_qua_result][:diffgram][:document_element];
 	if (ls ) then 
 		temp = ls[:mon_sinh_vien_da_qua];
 		if (temp.is_a?(Hash)) then 
@@ -113,7 +128,7 @@ mas = 1
 	end
 	ls2 = res_hash2[:mon_sinh_vien_no_response][:mon_sinh_vien_no_result][:diffgram][:document_element];
 	if (ls2) then 
-		temp = ls2[:mon_sinh_vien_no]
+		temp = ls2[:mon_sinh_vien_no];
 		if (temp.is_a?(Hash)) then 
 			ls2 = Array.new
 			ls2.push(temp)
@@ -126,55 +141,57 @@ mas = 1
 	end
 	ls_danghoc = res_hash_danghoc[:mon_hoc_trong_ky_response][:mon_hoc_trong_ky_result][:diffgram][:document_element];
 	if (ls_danghoc) then
-		temp = ls_danghoc[:mon_hoc_trong_ky]
+		temp = ls_danghoc[:mon_hoc_trong_ky];
 		if (temp.is_a?(Hash)) then 
-			ls_danghoc = Array.new
-			ls_danghoc.push(temp)
+			ls_danghoc = Array.new;
+			ls_danghoc.push(temp);
 		else (temp.is_a?(Array))
-			ls_danghoc = temp
+			ls_danghoc = temp;
 		end
+	else
+		puts 'Thoi hoc'
 	end
 
 	ls_courses = res_hash_courses[:khung_chuong_trinh_response][:khung_chuong_trinh_result][:diffgram][:document_element];	
 	if (ls_courses) then 
-		temp = ls_courses[:khung_chuong_trinh]
+		temp = ls_courses[:khung_chuong_trinh];
 		
 		if (temp.is_a?(Hash)) then 
-			ls_courses = Array.new
-			ls_courses.push(temp)
+			ls_courses = Array.new;
+			ls_courses.push(temp);
 		else (temp.is_a?(Array))
-			ls_courses = temp
+			ls_courses = temp;
 		end
 	else 
 		puts "error3";
 		return '{"error":"error3"}' 
 	end
-	ls_replace = res_hash_replace[:mon_thay_the_response][:mon_thay_the_result][:diffgram][:document_element]
+	ls_replace = res_hash_replace[:mon_thay_the_response][:mon_thay_the_result][:diffgram][:document_element];
 	if (ls_replace) then 		
-		temp = ls_replace[:mon_thay_the]		
+		temp = ls_replace[:mon_thay_the]	;	
 		if (temp.is_a?(Hash)) then 
 			ls_replace = Array.new
-			ls_replace.push(temp)
+			ls_replace.push(temp);
 		else (temp.is_a?(Array))
-			ls_replace = temp
+			ls_replace = temp;
 		end
 		
 	else
 		puts "Khong co mon thay the"
 	end
-	ls_dk = res_hash_dk[:dieu_kien_truoc_sau_response][:dieu_kien_truoc_sau_result][:diffgram][:document_element]
+	ls_dk = res_hash_dk[:dieu_kien_truoc_sau_response][:dieu_kien_truoc_sau_result][:diffgram][:document_element];
 	if (ls_dk) then 
-		temp = ls_dk[:dieu_kien_truoc_sau]
+		temp = ls_dk[:dieu_kien_truoc_sau];
 		if (temp.is_a?(Hash)) then 
 			ls_dk = Array.new
 			ls_dk.push(temp)
 		else (temp.is_a?(Array))
-			ls_dk = temp
+			ls_dk = temp;
 		end
 	else 
 		puts "Khong co dieu kien truoc sau";		
 	end
-	if (ls_danghoc) then 
+	if (ls_danghoc) then
 		ls_danghoc.each do |item|
 			temp = item[:ma_mon_hoc].strip
 			danghoc[temp] = 1
@@ -192,12 +209,17 @@ mas = 1
 		status[temp]['ten'] = item[:ten_mon_hoc].strip
 		status[temp]['khoiluong'] = item[:tong_so].strip	
 		status[temp]['nhom'] = 1
-		status[temp]['tennhom'] = (item[:ten_nhom])? item[:ten_nhom].strip : '';
 		if (item[:tu_chon]) then 
 			if (item[:so_mon_phai_chon]) then 
-				status[temp]['somontuchon'] = item[:so_mon_phai_chon].strip + '/' + item[:tong_so_mon_tu_chon].strip				
+				status[temp]['somontuchon'] = item[:so_mon_phai_chon].strip + '/' + item[:tong_so_mon_tu_chon].strip
+				if (item[:ten_nhom] ) then 
+					status[temp]['tennhom'] = item[:ten_nhom].strip
+				else
+					status[temp]['tennhom'] = ''
+				end
 			else
-				status[temp]['somontuchon'] = ''				
+				status[temp]['somontuchon'] = ''
+				status[temp]['tennhom'] = ''
 			end
 
 			status[temp]['tuchon'] = 1 
@@ -314,7 +336,10 @@ mas = 1
 		end
 	end
 
-
+	courses2_json = []
+	courses2.each do |k,v|
+		courses2_json.push({"name" => status[k]['ten']})
+	end
 	
 	courses.each do |k,v|	
 
@@ -377,15 +402,6 @@ mas = 1
 			end
 		end 
 	end
-
-	courses2_json = {}
-	courses2.each do |k,v|		
-		temp_tn = (status[k]['tennhom']) ? status[k]['tennhom']: 'nogroup';
-		if (!courses2_json[temp_tn]) then courses2_json[temp_tn] = Array.new; end 
-		courses2_json[temp_tn].push({"name" => status[k]['ten'],
-				"color" => status[k]['tinhtrang']})	;		
-	end
-
 	sbjs.each do |k,v|
 		if (v > 0) then 	
 			if (status[k]) then 		
