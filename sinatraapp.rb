@@ -202,6 +202,7 @@ mas = 1
 		sbjs[temp] = 0		
 		
 		status[temp] = {}
+		status[temp]['mamon'] = temp
 		status[temp]['makhoi'] = item[:ma_khoi_kien_thuc].strip
 		status[temp]['khoikienthuc'] = item[:ten_khoi_kien_thuc].strip
 		if (danghoc[temp] == 1) then status[temp]['tinhtrang'] = mdanghoc		
@@ -402,10 +403,17 @@ mas = 1
 	courses2_json = {}
 
 	courses2.each do |k,v|		
-		temp_tn = (status[k]['tennhom']) ? status[k]['tennhom']: false;
+		temp_tn = (status[k]['khoikienthuc']) ? status[k]['khoikienthuc']: false;
 		if (!courses2_json[temp_tn]) then courses2_json[temp_tn] = Array.new; end 
-		courses2_json[temp_tn].push({"name" => status[k]['ten'],
-				"color" => status[k]['tinhtrang']})	;		
+		courses2_json[temp_tn].push({"mamon" => status[k]['mamon'],"name" => status[k]['ten'],
+				"color" => status[k]['tinhtrang'],
+				"tuchon" => status[k]['tuchon'],
+					"tennhom" => (status[k]['tennhom']) ? status[k]['tennhom']: '',
+					"somontuchon" => status[k]['somontuchon'],					
+					"leaf" => status[k]['leaf'],
+					"dvht" => status[k]['khoiluong'],
+					"diem" => (status[k]['diem']) ? status[k]['diem'] : '',
+					"thaythe" => (status[k]['thaythe']) ?   status[k]['thaythe'] : '' })	;		
 	end
 	courses3 = []
 	itt = 1
