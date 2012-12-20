@@ -25,7 +25,7 @@
 				<div id="{{stt}}" class="accordion-body collapse">
 				<div class="accordion-inner">
 					{{#value}}
-						<a class="btn" style="font-size:18px;font-weight:bold;color:{{color}}" data-placement="top" rel="tooltip" href="#" title="{{name}}">{{name}}</a>
+						<a class="btn" style="font-size:18px;font-weight:bold;color:{{color}}" data-html="text" data-placement="top" rel="tooltip" href="#" title="Mã môn:		{{mamon}}&#013; Môn thay thế {{thaythe}}&#013; Số tín chỉ:	{{dvht}}&#013; Điểm: {{diem}}&#013; Khối kiến thức:		{{khoikienthuc}} &#013; Nhóm tự chọn:	{{tuchon}} &#013; Tên nhóm:	 {{tennhom}} &#013;">{{name}}</a>
 					{{/value}}					
 				</div>
 				</div>
@@ -74,7 +74,7 @@
 	}
 	.input-mysize { width: 200px; height: 100px; }
 	.navbar-inner {margin: 0 auto; }
-	#msv,#btn, #btnhssv,#btnhelp { margin-top:30px; margin-left:30px; }
+	#monkhac, #msv,#btn, #btnhssv,#btnhelp { margin-top:30px; margin-left:30px; }
 	#hssvinner {
 		margin-top:30px;
 	}
@@ -114,14 +114,16 @@
 					    </form>
 					   
 					  <button id="btn" class="btn-primary btn-large pull-left">Kiểm tra điều kiện tiên quyết</button>
-						<button id="btnhssv" class="btn-primary btn-large pull-left">HSSV</button>
+						<button id="btnhssv" class="btn-primary btn-large pull-left">Hồ sơ</button>
+						<button id="monkhac" href="#myModal2" class="btn-primary btn-large pull-left" data-toggle="modal">Các môn khác</button>
+						
 					<div class="btn-group dropdown pull-right" id="btnhelp">
     			
 				    <button class="btn-large btn-success dropdown-toggle " data-toggle="dropdown">
-				    	<span>Hướng dẫn sử dụng</span><span class="caret"></span>
+				    	<span>Help</span><span class="caret"></span>
 				    </button>
 				    <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">
-								    <li><a tabindex="-1" href="#myModal" data-toggle="modal">Hướng dẫn sử dụng</a></li>
+								    <li><a tabindex="-1" href="#myModal" data-toggle="modal">Giải thích các màu</a></li>
 								    <li><a tabindex="-1" href="#myModal2" data-toggle="modal">Các môn không có điều kiện ràng buộc</a></li>						   
 					</ul>  
     				</div>		    
