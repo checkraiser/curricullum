@@ -335,11 +335,7 @@ mas = 1
 			j = j + 1
 		end
 	end
-
-	courses2_json = []
-	courses2.each do |k,v|
-		courses2_json.push({"name" => status[k]['ten']})
-	end
+	
 	
 	courses.each do |k,v|	
 
@@ -402,6 +398,23 @@ mas = 1
 			end
 		end 
 	end
+	
+	courses2_json = {}
+
+	courses2.each do |k,v|		
+		temp_tn = (status[k]['tennhom']) ? status[k]['tennhom']: false;
+		if (!courses2_json[temp_tn]) then courses2_json[temp_tn] = Array.new; end 
+		courses2_json[temp_tn].push({"name" => status[k]['ten'],
+				"color" => status[k]['tinhtrang']})	;		
+	end
+	courses3 = []
+	itt = 1
+	courses2_json.each do |k,v|
+		courses3.push({"stt" => itt, "key" => k,
+			"value" => v})
+		itt = itt + 1
+	end
+	itt = 1
 	sbjs.each do |k,v|
 		if (v > 0) then 	
 			if (status[k]) then 		
@@ -423,7 +436,7 @@ mas = 1
 
 	tags["nodes"] = nodes
 	tags["links"] = links
-	tags["other"] = courses2_json
+	tags["other"] = courses3
 
 	return tags.to_json
 end
