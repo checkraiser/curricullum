@@ -7,6 +7,15 @@
  });
  
     var fill = d3.scale.category10();  
+ 
+	$('#msv').keypress(function(e) {
+		
+    if(e.which == 13) {
+		e.preventDefault();        
+		$('#btn').click();
+    }
+});
+	
   $('#btn').click(
   function () {
     var msv = $('#msv').val();   
@@ -15,6 +24,7 @@
   
   $.getJSON('check/' + msv, function(data) {    
       if (data) {
+		 $('#othercourses').empty();
         if (data.error == 'khongtontai') {
           alert('Mã sinh viên này không tồn tại');
         } else if (data.error == 'nienche') {
@@ -32,8 +42,7 @@
           $('#tinhtrang').html(data.tinhtrang);
           $('#khoahoc').html(data.khoahoc);
           $('#tennganh').html(data.tennganh);
-          $('#tags').empty();
-          $('othercourses').empty();
+          $('#tags').empty();          
           callback();         
         }      
       }
@@ -51,9 +60,9 @@
          
         if (json.other) {
           
-          for (var i = 0; i < json.other.length; i++) {
-            $('#othercourses').append('<span class="kodk">' + json.other[i].name + '</span>, \t');
-          }          
+           var template = $("#othercoursesTmpl").html();
+         var output = Mustache.render(template, json);
+          $("#accordion2").html(output);
            
         }
         if (json.nodes.length == 0) {
@@ -133,13 +142,19 @@
           .enter().append("svg:text")
           .attr("x", function(d) { return d.x ; })
           .attr("y", function(d) { return d.y ; })         
-          .attr('stroke-width', "1") 
+           .attr("stroke-width", function(d) {
+            if (d.thaythe.length > 1)
+             return '3';    
+            else
+             return '1';         
+          })
           .attr('stroke-opacity', ".3")
           .attr("stroke", function(d) {
             if (d.thaythe.length > 1)
              return 'red'; 
             else return 'black';
           })
+         
           .text(function(d) { return  d.name ; })
           .attr("font-size","18px")
           .call(force.drag);
