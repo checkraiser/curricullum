@@ -9,6 +9,43 @@
 <link href="css/bootstrap.min.css" rel="stylesheet">   
   <script type="text/javascript" src="js/d3.v2.min.js"></script>
   <script type="text/javascript" src="js/mustache.js"></script>
+  <script id="tttnTmpl" type="text/mustache">
+	{{#danhsach}}
+	<div class="accordion-group">
+				<div class="accordion-heading">
+				<a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion3" href="#tt{{stt}}">
+					{{#key.ten}}
+					<h3>Nhóm tự chọn {{key.ten}}:</h3> (Tổng số môn: {{key.somontuchon}} môn, Bắt buộc: {{key.tongso}}  môn
+					, Chưa đăng ký hoặc chưa học: {{key.thieu}} môn, 	Đã học: {{key.current}} môn)						 
+					{{/key.ten}}
+					{{^key.ten}}
+					<h3>Nhóm 1:</h3> (Tổng số môn: {{key.tongso}} môn, Chưa đăng ký hoặc chưa học: {{key.thieu}} môn, 	Đã học: {{key.current}} môn)					
+					{{/key.ten}}					
+						        <div class="progress progress-striped">
+  <div class="bar bar-success" style="width: {{key.percent}}%;"></div>
+						    	<div class="bar bar-danger" style="width: {{key.percentthieu}}%;"></div>
+    </div>
+				</a>
+				</div>
+				<div id="tt{{stt}}" class="accordion-body collapse">
+				<div class="accordion-inner">
+					{{#value}}										
+						
+						{{#dsmondahoc}}						
+						<a class="btn" style="font-size:18px;font-weight:bold;color:{{color}}">{{name}}</a>
+						{{/dsmondahoc}}
+						{{#dsmonno}}						
+						<a class="btn" style="font-size:18px;font-weight:bold;color:{{color}}">{{name}}</a>
+						{{/dsmonno}}
+					{{/value}}					
+				</div>
+				</div>
+			</div>
+		{{/danhsach}}
+		{{^danhsach}}
+		<h3>Bạn đủ điều kiện đăng ký TTTN</h3>
+		{{/danhsach}}
+</script>
 <script id="othercoursesTmpl" type="text/mustache">
 	{{#other}}
 	<div class="accordion-group">
@@ -66,15 +103,15 @@
 	  	background-color: #3B5998;
 	  }
 	  .modal-body {
-    max-height: 800px;
-     max-width: 80%;
+		max-height: 800px;
+		 max-width: 80%;
 	}
 	.kodk {
 		font-size: 20px;
 	}
 	.input-mysize { width: 200px; height: 100px; }
 	.navbar-inner {margin: 0 auto; }
-	#monkhac, #msv,#btn, #btnhssv,#btnhelp { margin-top:30px; margin-left:30px; }
+	#btntn, #monkhac, #msv,#btn, #btnhssv,#btnhelp { margin-top:30px; margin-left:30px; }
 	#hssvinner {
 		margin-top:30px;
 	}
@@ -87,16 +124,21 @@
 	.myModal{
    width:80%;
    margin-left:-40%; 
-	margin-top:-20%;
+	margin-top:-25%;
 	text-align: center;
 	}
 	.myModal2{
-  width:80%;
+	  width:80%;
+	   margin-left:-40%; 
+		margin-top:-25%;
+		text-align: center;
+	}
+	.myModal3{
+   width:80%;
    margin-left:-40%; 
-	margin-top:-20%;
+	margin-top:-25%;
 	text-align: center;
 	}
-	
 </style>
 </head>  
 <body>  
@@ -113,10 +155,10 @@
 					    <input type="text" id="msv" class="input-mysize search-query" placeholder="Mã sinh viên">					    		
 					    </form>
 					   
-					  <button id="btn" class="btn-primary btn-large pull-left">Kiểm tra điều kiện tiên quyết</button>
+					  <button id="btn" class="btn-primary btn-large pull-left">Kiểm tra</button>
 						<button id="btnhssv" class="btn-primary btn-large pull-left">Hồ sơ</button>
 						<button id="monkhac" href="#myModal2" class="btn-primary btn-large pull-left" data-toggle="modal">Các môn khác</button>
-						
+						<button id="btntn" href="#myModal3" class="btn-primary btn-large pull-left" data-toggle="modal">TTTN</button>
 					<div class="btn-group dropdown pull-right" id="btnhelp">
     			
 				    <button class="btn-large btn-success dropdown-toggle " data-toggle="dropdown">
@@ -184,6 +226,7 @@
   <div class="modal-header">
     <a class="close" data-dismiss="modal">×</a>
     <h3>Hướng dẫn đăng kí môn học</h3>
+	<h4 style="color:red;">Hệ thống đang xây dựng và thử nghiệm, thông tin chỉ có giá trị tham khảo.</h4>
   </div>
   <div class="modal-body">
   <div id="ttlh">				
@@ -202,6 +245,19 @@
   </div>
   <div class="modal-body">
     <div class="accordion" id="accordion2">
+						
+		</div>
+  </div>
+ 
+</div>
+
+<div class="modal hide fade myModal2" id="myModal3">
+  <div class="modal-header">
+    <a class="close" data-dismiss="modal">×</a>
+    <h3>Điều kiện đăng ký thực tập tốt nghiệp:</h3>
+  </div>
+  <div class="modal-body">
+    <div class="accordion" id="accordion3">
 						
 		</div>
   </div>
