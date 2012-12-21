@@ -46,6 +46,31 @@ client.get(id, function(err, rid){
 });  
 });
 
+app.get("/checktn/:id", function(req, res){
+  var id = req.params.id;
+  var ip = req.connection.remoteAddress || req.headers.host || req.headers['x-forwarded-for'];
+  var ckey = 'checktn:' + id;
+  client.get(ckey, function(err, cid){
+    if (!cid) {
+    rest.get('http://127.0.0.1:3000/checktn/' + ip + '/'+ id).on('complete', function(data) {
+        if (data.error) {     
+      client.set(ckey, JSON.stringify(data));
+      client.expire(ckey, day);      
+          res.end(JSON.stringify(data));
+        } else {      
+          client.set(ckey, JSON.stringify(data));
+      client.expire(ckey, day);      
+          res.end(JSON.stringify(data));
+        }
+      
+    });
+  } else {  
+    client.expire(ckey, day);      
+    res.end(JSON.stringify(JSON.parse(cid)));
+  }
+  });
+  
+});
 
 app.get("/check/:id", function(req, res){
 	var id = req.params.id;
