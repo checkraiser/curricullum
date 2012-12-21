@@ -7,7 +7,7 @@
  });
  
     var fill = d3.scale.category10();  
- 
+	
 	$('#msv').keypress(function(e) {
 		
     if(e.which == 13) {
@@ -15,7 +15,52 @@
 		$('#btn').click();
     }
 });
+	$('#btntn').click(
 	
+  function () {
+    var msv = $('#msv').val();   
+    
+    
+  
+  $.getJSON('check/' + msv, function(data) {    
+      if (data) {
+     $('#othercourses').empty();
+        if (data.error == 'khongtontai') {
+          alert('Mã sinh viên này không tồn tại');
+        } else if (data.error == 'nienche') {
+          alert('Hệ thống này không dành cho hệ đào tạo niên chế');
+        } else if (data.error == 'error5'){
+          alert('Không tồn tại điều kiện trước sau');
+        }
+        else{                    
+           $('#masinhvien').html(data.masinhvien);
+          $('#malop').html(data.malop);
+          $('#gioitinh').html(data.gioitinh);
+          $('#hovaten').html(data.hovaten);
+          $('#tenhedaotao').html(data.tenhedaotao);
+          $('#daotao').html(data.daotao);
+          $('#tinhtrang').html(data.tinhtrang);
+          $('#khoahoc').html(data.khoahoc);
+          $('#tennganh').html(data.tennganh); 
+		  $('#accordion3').empty();
+          kiemtratttn();         
+        }      
+      }
+      else 
+        alert(data);
+  });
+    function kiemtratttn() {
+            d3.json('/checktn/' + msv, function(json) {
+             
+            if (json.danhsach) {
+              
+               var template = $("#tttnTmpl").html();
+             var output = Mustache.render(template, json);
+              $("#accordion3").html(output);   
+            }
+      } 
+    )
+}});
   $('#btn').click(
   function () {
     var msv = $('#msv').val();   
