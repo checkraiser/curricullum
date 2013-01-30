@@ -5,21 +5,25 @@ require 'yajl/json_gem'
 require 'csv'
 require 'savon'
 require 'json'
+require 'dalli'
 
+dc = Dalli::Client.new('localhost:11211');
 
-
+set :environment, :production
 
 disable = '#FF0000'
 mdanghoc = '#0033FF'
+Resque.redis = '10.1.0.238:6382'
+
 class Archive
   @queue = :logging
 
-  def self.perform(ip, time, id)	
-    puts "From queue " + @queue.to_s 
+  def self.perform(ip, time, id, action)	
+    puts "From queue " + @queue.to_s + ": Action: " + action + ", id: " + id
 	
 	Tire.index 'logs3' do      
       create
-      store :ip => ip,   :time => time, :msv => id
+      store :ip => ip,   :time => time, :msv => id, :action => action
       refresh
     end
 	
@@ -30,31 +34,204 @@ before do
 end
 
 dadangky = '#009900'
+get '/checkltn/:ip/:id' do |ip, id|	 
+	msv = id.strip
+	cachedkey = 'checkltn:'+msv;
+	val = dc.get(cachedkey);
+	return val unless val == nil
+	Resque.enqueue(Archive, ip, Time.now.to_s, msv, 'checkltn')
+	client = Savon.client(wsdl: "http://10.1.0.238:8082/HPUWebService.asmx?wsdl")
+	response = client.call(:ctdt_dang_ky_ltn) do		
+		message(ma_sinh_vien: msv)
+	end
+	response_tuchon = client.call(:dang_ky_nhom_tu_chon) do
+		message(ma_sinh_vien: msv)
+	end
+	response_dangky = client.call(:mon_sinh_vien_da_qua) do		
+		message(masinhvien: msv)
+	end
+	response_replace = client.call(:mon_thay_the) do
+		message(masinhvien: msv)
+	end
+	
+	
+	
+	res_hash = response.body.to_hash;
+	res_hash_tuchon = response_tuchon.body.to_hash;
+	res_hash_dk = response_dangky.body.to_hash
+	res_hash_replace = response_replace.body.to_hash;
+	
 
+	ls = res_hash[:ctdt_dang_ky_ltn_response][:ctdt_dang_ky_ltn_result][:diffgram][:document_element]; 
+	ls_tuchon = res_hash_tuchon[:dang_ky_nhom_tu_chon_response][:dang_ky_nhom_tu_chon_result][:diffgram][:document_element];
+	ls_dk = res_hash_dk[:mon_sinh_vien_da_qua_response][:mon_sinh_vien_da_qua_result][:diffgram][:document_element]; 
+	ls_replace = res_hash_replace[:mon_thay_the_response][:mon_thay_the_result][:diffgram][:document_element]
+	
 
+	if (ls ) then 
+		temp = ls[:ctdt_dang_ky_ltn];
+		if (temp.is_a?(Hash)) then 
+			ls = Array.new
+			ls.push(temp);
+		else (temp.is_a?(Array))
+			ls = temp;
+		end		
+	else 
+		puts "Da qua het";
+		#return '{"error":"error1"} '
+	end
+	if (ls_dk ) then 
+		temp2 = ls_dk[:mon_sinh_vien_da_qua];
+		if (temp2.is_a?(Hash)) then 
+			ls_dk = Array.new
+			ls_dk.push(temp2);
+		else (temp2.is_a?(Array))
+			ls_dk = temp2;
+		end		
+	else 
+		puts "Chua qua mon nao";
+		#return '{"error":"error1"} '
+	end
+	if (ls_replace) then 		
+		temp = ls_replace[:mon_thay_the]		
+		if (temp.is_a?(Hash)) then 
+			ls_replace = Array.new
+			ls_replace.push(temp)
+		else (temp.is_a?(Array))
+			ls_replace = temp
+		end
+		
+	else
+		puts "Khong co mon thay the"
+	end
+
+	tenmon = {}
+	tennhom = {}
+	nhom = {}
+	status = {}
+	replace = {}	
+	ls2 = ls.select { |x| x[:ma_nhom] == 'NoGroup'};
+	size = ls2.size;
+	if (ls) then
+		ls.each do |item|
+			temp = item[:ma_mon_hoc].strip
+			tenmon[temp] = item[:ten_mon_hoc].strip
+			manhom = item[:ma_nhom].strip	
+			tennhom[temp] = item[:ten_nhom].strip	
+			status[temp] = manhom
+			if (nhom[manhom] == nil) then nhom[manhom] = {} end
+			if (manhom != 'NoGroup') then 
+				nhom[manhom][:ten_nhom] = manhom
+				nhom[manhom][:sum] = item[:tong_so_mon_tu_chon].to_i
+				nhom[manhom][:tong_so] = item[:so_mon_phai_chon].to_i			
+				nhom[manhom][:current] = 0
+				if (nhom[manhom][:dsmon] == nil) then nhom[manhom][:dsmon] = [] end
+				if (nhom[manhom][:dsmondahoc] == nil) then nhom[manhom][:dsmondahoc] = [] end
+				if (nhom[manhom][:dsmonsum] == nil) then nhom[manhom][:dsmonsum] = [] end
+				nhom[manhom][:dsmon].push(temp)
+				nhom[manhom][:dsmonsum].push(temp)
+			else			
+				nhom[manhom][:ten_nhom] = false
+				nhom[manhom][:sum] = size
+				nhom[manhom][:tong_so]	= size
+				nhom[manhom][:current]  = 0
+				if (nhom[manhom][:dsmon] == nil) then nhom[manhom][:dsmon] = [] end
+				if (nhom[manhom][:dsmondahoc] == nil) then nhom[manhom][:dsmondahoc] = [] end
+				if (nhom[manhom][:dsmonsum] == nil) then nhom[manhom][:dsmonsum] = [] end
+				nhom[manhom][:dsmon].push(temp)
+				nhom[manhom][:dsmonsum].push(temp)
+			end
+		end
+	end
+	if (ls_replace) then 				
+		ls_replace.each do |item|								
+			mon1 = item[:ma_mon_hoc1].strip			
+			mon2 = item[:ma_mon_hoc2].strip
+			replace[mon2] = mon1		
+		end
+	end
+	if (ls_dk) then
+		ls_dk.each do |item|
+			temp = item[:ma_mon_hoc].strip
+			if replace[temp] then temp = replace[temp] end 
+			if (status[temp]) then 						 							
+				if (nhom[status[temp]]) then 
+					nhom[status[temp]][:current] += 1
+					nhom[status[temp]][:dsmon] -= [temp]
+					nhom[status[temp]][:dsmondahoc] += [temp]
+				else 
+					puts "Khong ton tai nhom: " + temp
+				end
+			else 
+				puts "Khong ton tai mon: " + temp
+			end
+		end
+	end
+	
+
+	dk = true
+	thieu = []
+	iid = 1
+	nhom.each do |k,v|
+		if (nhom[k][:current] < nhom[k][:tong_so]) then 
+			thieu.push({ "stt" => iid, 
+			"tuchon" => (ls_tuchon == nil) ? false : true,
+			"key" => {"ten" => nhom[k][:ten_nhom],  "current" => nhom[k][:current],
+					"tongso" => nhom[k][:tong_so],
+					"percent" => 100 * nhom[k][:current].to_f / nhom[k][:tong_so],
+					"percentthieu" => 100 * (nhom[k][:tong_so].to_f - nhom[k][:current].to_f) / nhom[k][:tong_so],
+					"somontuchon" => nhom[k][:sum],
+					"thieu" => nhom[k][:tong_so] - nhom[k][:current] },
+			"value" => {				 
+				"sum" => nhom[k][:dsmonsum].map { |k| tenmon[k]},
+			"dsmonno" => nhom[k][:dsmon].map { |k| {"name" => tenmon[k], "color" => disable}},
+			"dsmondahoc" => nhom[k][:dsmondahoc].map { |k| {"name" => tenmon[k], "color" => dadangky }}
+
+			}})
+			iid = iid + 1
+			dk = false
+		end
+	end
+	dc.set(cachedkey, {"danhsach" => thieu}.to_json);
+	return {"danhsach" => thieu}.to_json
+	
+
+end
+get '/methods/?' do
+	client = Savon.client(wsdl: "http://10.1.0.238:8082/HPUWebService.asmx?wsdl")
+	return client.operations.to_json
+end
 get '/checktn/:ip/:id' do |ip,id|
 	msv = id.strip
-	Resque.enqueue(Archive, ip, Time.now.to_s, msv)
-	client = Savon.client("http://10.1.0.237:8082/Services.asmx?wsdl")
-	response = client.request(:ctdt_dang_ky_tttn) do		
-		soap.body = {:ma_sinh_vien => msv}
+	cachedkey = 'checktn:'+msv
+	val = dc.get(cachedkey);
+	return val unless val == nil
+	Resque.enqueue(Archive, ip, Time.now.to_s, msv, 'checktn')
+	client = Savon.client(wsdl: "http://10.1.0.238:8082/HPUWebService.asmx?wsdl")
+	response = client.call(:ctdt_dang_ky_tttn) do		
+		message(ma_sinh_vien: msv)
 	end
-	response_dangky = client.request(:mon_sinh_vien_da_hoc) do		
-		soap.body = {:masinhvien => msv}
+	response_tuchon = client.call(:dang_ky_nhom_tu_chon) do
+		message(ma_sinh_vien: msv)
 	end
-	response_replace = client.request(:mon_thay_the) do
-		soap.body = {:masinhvien => msv}
+	response_dangky = client.call(:mon_sinh_vien_da_hoc) do		
+		message(masinhvien: msv)
 	end
-	response_danghoc = client.request(:mon_hoc_trong_ky) do
-		soap.body = {:masinhvien => msv};
+	response_replace = client.call(:mon_thay_the) do
+		message(masinhvien: msv)
+	end
+	response_danghoc = client.call(:mon_hoc_trong_ky) do
+		message(masinhvien: msv)
 	end;
 
-	res_hash = response.body.to_hash
-	res_hash_dk = response_dangky.body.to_hash
+	res_hash = response.body.to_hash;
+	res_hash_tuchon = response_tuchon.body.to_hash;
+	res_hash_dk = response_dangky.body.to_hash;
 	res_hash_replace = response_replace.body.to_hash;
 	res_hash_danghoc = response_danghoc.to_hash;
 
 	ls = res_hash[:ctdt_dang_ky_tttn_response][:ctdt_dang_ky_tttn_result][:diffgram][:document_element]; 
+	ls_tuchon = res_hash_tuchon[:dang_ky_nhom_tu_chon_response][:dang_ky_nhom_tu_chon_result][:diffgram][:document_element];
 	ls_dk = res_hash_dk[:mon_sinh_vien_da_hoc_response][:mon_sinh_vien_da_hoc_result][:diffgram][:document_element]; 
 	ls_replace = res_hash_replace[:mon_thay_the_response][:mon_thay_the_result][:diffgram][:document_element]
 	ls_danghoc = res_hash_danghoc[:mon_hoc_trong_ky_response][:mon_hoc_trong_ky_result][:diffgram][:document_element];
@@ -114,36 +291,37 @@ get '/checktn/:ip/:id' do |ip,id|
 	replace = {}	
 	ls2 = ls.select { |x| x[:ma_nhom] == 'NoGroup'};
 	size = ls2.size;
-	ls.each do |item|
-		temp = item[:ma_mon_hoc].strip
-		tenmon[temp] = item[:ten_mon_hoc].strip
-		manhom = item[:ma_nhom].strip	
-		tennhom[temp] = item[:ten_nhom].strip	
-		status[temp] = manhom
-		if (nhom[manhom] == nil) then nhom[manhom] = {} end
-		if (manhom != 'NoGroup') then 
-			nhom[manhom][:ten_nhom] = manhom
-			nhom[manhom][:sum] = item[:tong_so_mon_tu_chon].to_i
-			nhom[manhom][:tong_so] = item[:so_mon_phai_chon].to_i			
-			nhom[manhom][:current] = 0
-			if (nhom[manhom][:dsmon] == nil) then nhom[manhom][:dsmon] = [] end
-			if (nhom[manhom][:dsmondahoc] == nil) then nhom[manhom][:dsmondahoc] = [] end
-			if (nhom[manhom][:dsmonsum] == nil) then nhom[manhom][:dsmonsum] = [] end
-			nhom[manhom][:dsmon].push(temp)
-			nhom[manhom][:dsmonsum].push(temp)
-		else			
-			nhom[manhom][:ten_nhom] = false
-			nhom[manhom][:sum] = size
-			nhom[manhom][:tong_so]	= size
-			nhom[manhom][:current]  = 0
-			if (nhom[manhom][:dsmon] == nil) then nhom[manhom][:dsmon] = [] end
-			if (nhom[manhom][:dsmondahoc] == nil) then nhom[manhom][:dsmondahoc] = [] end
-			if (nhom[manhom][:dsmonsum] == nil) then nhom[manhom][:dsmonsum] = [] end
-			nhom[manhom][:dsmon].push(temp)
-			nhom[manhom][:dsmonsum].push(temp)
+	if (ls) then
+		ls.each do |item|
+			temp = item[:ma_mon_hoc].strip
+			tenmon[temp] = item[:ten_mon_hoc].strip
+			manhom = item[:ma_nhom].strip	
+			tennhom[temp] = item[:ten_nhom].strip	
+			status[temp] = manhom
+			if (nhom[manhom] == nil) then nhom[manhom] = {} end
+			if (manhom != 'NoGroup') then 
+				nhom[manhom][:ten_nhom] = manhom
+				nhom[manhom][:sum] = item[:tong_so_mon_tu_chon].to_i
+				nhom[manhom][:tong_so] = item[:so_mon_phai_chon].to_i			
+				nhom[manhom][:current] = 0
+				if (nhom[manhom][:dsmon] == nil) then nhom[manhom][:dsmon] = [] end
+				if (nhom[manhom][:dsmondahoc] == nil) then nhom[manhom][:dsmondahoc] = [] end
+				if (nhom[manhom][:dsmonsum] == nil) then nhom[manhom][:dsmonsum] = [] end
+				nhom[manhom][:dsmon].push(temp)
+				nhom[manhom][:dsmonsum].push(temp)
+			else			
+				nhom[manhom][:ten_nhom] = false
+				nhom[manhom][:sum] = size
+				nhom[manhom][:tong_so]	= size
+				nhom[manhom][:current]  = 0
+				if (nhom[manhom][:dsmon] == nil) then nhom[manhom][:dsmon] = [] end
+				if (nhom[manhom][:dsmondahoc] == nil) then nhom[manhom][:dsmondahoc] = [] end
+				if (nhom[manhom][:dsmonsum] == nil) then nhom[manhom][:dsmonsum] = [] end
+				nhom[manhom][:dsmon].push(temp)
+				nhom[manhom][:dsmonsum].push(temp)
+			end
 		end
 	end
-
 	if (ls_replace) then 				
 		ls_replace.each do |item|								
 			mon1 = item[:ma_mon_hoc1].strip			
@@ -151,34 +329,38 @@ get '/checktn/:ip/:id' do |ip,id|
 			replace[mon2] = mon1		
 		end
 	end
-	ls_dk.each do |item|
-		temp = item[:ma_mon_hoc].strip
-		if replace[temp] then temp = replace[temp] end 
-		if (status[temp]) then 						 							
-			if (nhom[status[temp]]) then 
-				nhom[status[temp]][:current] += 1
-				nhom[status[temp]][:dsmon] -= [temp]
-				nhom[status[temp]][:dsmondahoc] += [temp]
+	if (ls_dk) then
+		ls_dk.each do |item|
+			temp = item[:ma_mon_hoc].strip
+			if replace[temp] then temp = replace[temp] end 
+			if (status[temp]) then 						 							
+				if (nhom[status[temp]]) then 
+					nhom[status[temp]][:current] += 1
+					nhom[status[temp]][:dsmon] -= [temp]
+					nhom[status[temp]][:dsmondahoc] += [temp]
+				else 
+					puts "Khong ton tai nhom: " + temp
+				end
 			else 
-				puts "Khong ton tai nhom: " + temp
+				puts "Khong ton tai mon: " + temp
 			end
-		else 
-			puts "Khong ton tai mon: " + temp
 		end
 	end
-	ls_danghoc.each do |item|
-		temp = item[:ma_mon_hoc].strip
-		if replace[temp] then temp = replace[temp] end 
-		if (status[temp]) then 						 							
-			if (nhom[status[temp]] and not nhom[status[temp]][:dsmondahoc].include?(temp)) then 
-				nhom[status[temp]][:current] += 1
-				nhom[status[temp]][:dsmon] -= [temp]
-				nhom[status[temp]][:dsmondahoc] += [temp]
+	if (ls_danghoc) then
+		ls_danghoc.each do |item|
+			temp = item[:ma_mon_hoc].strip
+			if replace[temp] then temp = replace[temp] end 
+			if (status[temp]) then 						 							
+				if (nhom[status[temp]] and not nhom[status[temp]][:dsmondahoc].include?(temp)) then 
+					nhom[status[temp]][:current] += 1
+					nhom[status[temp]][:dsmon] -= [temp]
+					nhom[status[temp]][:dsmondahoc] += [temp]
+				else 
+					puts "Khong ton tai nhom: " + temp
+				end
 			else 
-				puts "Khong ton tai nhom: " + temp
+				puts "Khong ton tai mon: " + temp
 			end
-		else 
-			puts "Khong ton tai mon: " + temp
 		end
 	end
 
@@ -188,6 +370,7 @@ get '/checktn/:ip/:id' do |ip,id|
 	nhom.each do |k,v|
 		if (nhom[k][:current] < nhom[k][:tong_so]) then 
 			thieu.push({ "stt" => iid, 
+			"tuchon" => (ls_tuchon == nil) ? false : true,
 			"key" => {"ten" => nhom[k][:ten_nhom],  "current" => nhom[k][:current],
 					"tongso" => nhom[k][:tong_so],
 					"percent" => 100 * nhom[k][:current].to_f / nhom[k][:tong_so],
@@ -204,15 +387,20 @@ get '/checktn/:ip/:id' do |ip,id|
 			dk = false
 		end
 	end
+	dc.set(cachedkey, {"danhsach" => thieu}.to_json)
 	return {"danhsach" => thieu}.to_json
 end
 
 
 get '/check/:id' do |id|
 	msv = id.strip
-	client = Savon.client("http://10.1.0.237:8082/Services.asmx?wsdl")
-	response = client.request(:thong_tin_sinh_vien) do		
-		soap.body = {:masinhvien => msv}
+	cachedkey = 'check:'+msv
+	val = dc.get(cachedkey)
+	return val unless val == nil
+	client = Savon.client(wsdl: "http://10.1.0.238:8082/HPUWebService.asmx?wsdl")
+	puts client.inspect
+	response = client.call(:thong_tin_sinh_vien) do		
+		message(masinhvien: msv)
 	end
 	res_hash = response.body.to_hash
 	
@@ -262,28 +450,30 @@ courses2 = {}
 danghoc = {}
 mas = 1
 
-
 	msv = id.strip;
-	Resque.enqueue(Archive, ip, Time.now.to_s, msv)
+	cachedkey = 'tree:'+msv
+	val = dc.get(cachedkey)
+	return val unless val == nil
+	Resque.enqueue(Archive, ip, Time.now.to_s, msv, 'check')
 	i = 0;
-	client = Savon.client("http://10.1.0.237:8082/Services.asmx?wsdl");
-	response = client.request(:mon_sinh_vien_da_qua) do
-		soap.body = {:masinhvien => msv };
+	client = Savon.client(wsdl: "http://10.1.0.238:8082/HPUWebService.asmx?wsdl");
+	response = client.call(:mon_sinh_vien_da_qua) do
+		message(masinhvien: msv)
 	end;
-	response2 = client.request(:mon_sinh_vien_no) do
-		soap.body = {:masinhvien => msv };
+	response2 = client.call(:mon_sinh_vien_no) do
+		message(masinhvien: msv)
 	end;
-	response_courses = client.request(:khung_chuong_trinh) do
-		soap.body = {:masinhvien => msv };
+	response_courses = client.call(:khung_chuong_trinh) do
+		message(masinhvien: msv)
 	end;
-	response_replace = client.request(:mon_thay_the) do
-		soap.body = {:masinhvien => msv};
+	response_replace = client.call(:mon_thay_the) do
+		message(masinhvien: msv)
 	end;
-	response_dk = client.request(:dieu_kien_truoc_sau) do
-		soap.body = {:masinhvien => msv };
+	response_dk = client.call(:dieu_kien_truoc_sau) do
+		message(masinhvien: msv)
 	end;
-	response_danghoc = client.request(:mon_hoc_trong_ky) do
-		soap.body = {:masinhvien => msv};
+	response_danghoc = client.call(:mon_hoc_trong_ky) do
+		message(masinhvien: msv)
 	end;
 
 	res_hash = response.body.to_hash;
@@ -625,7 +815,7 @@ mas = 1
 	tags["nodes"] = nodes
 	tags["links"] = links
 	tags["other"] = courses3
-
+	dc.set(cachedkey, tags.to_json)
 	return tags.to_json
 end
 
